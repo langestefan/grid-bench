@@ -7,9 +7,9 @@
 # like sparlectra and p3s, to add the tool without waiting. It needs
 # lightsim2grid's C++ headers and CMake package (lightsim2grid_core), which
 # the PyPI wheel does not ship, so lightsim2grid is built from its 1.1.0
-# sdist, the release the lightsim2grid image installs from PyPI, with the
-# wheel's flags (no -march=native, no -O3: `compiled_march_native` and
-# `compiled_o3_optim` are False in that image).
+# sdist, the release the lightsim2grid image compiles too, with the sdist's
+# own flags (no -march=native; the lightsim2grid image adds p3s's flags,
+# for the CPU comparison with p3s, which does not concern this seed).
 #
 # Pinned like everything else, no apt packages: NVIDIA's CUDA 12.9 devel
 # image by digest (nvcc, cuSPARSE, cuBLAS; Ubuntu 22.04, whose glibc 2.35 is

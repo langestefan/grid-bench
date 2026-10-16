@@ -11,7 +11,7 @@ for every row).
 
 Settings:
 - `change_algorithm(DC_KLU)`: the DC solver on KLU (lightsim2grid's default
-  is Eigen's SparseLU), as the AC column uses NR_KLU.
+  is Eigen's SparseLU), as the AC adapter uses NRSing_KLU.
 - `dc_pf(v_init, MAX_ITERATIONS, TOLERANCE_PU)` with the power-flow
   adapter's flat `v_init` (a DC solve is one linear solve; the arguments are
   lightsim2grid's signature). An empty result means a failed solve.

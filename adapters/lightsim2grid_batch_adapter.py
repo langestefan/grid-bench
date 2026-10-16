@@ -19,10 +19,11 @@ not). Scenario values go to the loads by MATPOWER bus number and to the
 generators by gen row; offline generators keep their own P.
 
 Settings:
-- `change_algorithm(NR_KLU)`, as in the power-flow adapter.
+- `change_algorithm(NRSing_KLU)`, as in the power-flow adapter.
 - `modify_gen_p`, `modify_load_p`, `modify_load_q` (scenarios x elements;
   no static generators), then `compute(v_init, MAX_ITERATIONS,
-  TOLERANCE_PU)` with `v_init` the power-flow adapter's flat start. The
+  tolerance(grid))` with `v_init` the power-flow adapter's flat start, and
+  its tolerance, `TOLERANCE_PU` in MVA as lightsim2grid's `tol` expects. The
   `compute_Vs` call that does both at once is deprecated in 1.0.
 - `init_from_n_powerflow=True`: `compute` first solves the base case from
   the `v_init` it is given (the power-flow adapter's flat start) and starts
@@ -38,8 +39,8 @@ Settings:
 import numpy as np
 
 from adapters.batch_adapter import BatchAdapter, BatchSolution, base_case, columns, scenarios
-from adapters.lightsim2grid_adapter import Lightsim2gridAdapter
-from adapters.solver_adapter import MAX_ITERATIONS, TOLERANCE_PU, DidNotConverge
+from adapters.lightsim2grid_adapter import Lightsim2gridAdapter, tolerance
+from adapters.solver_adapter import MAX_ITERATIONS, DidNotConverge
 from cases.matpower import BUS_I, GEN_BUS, PD, parse_m
 from cases.registry import CASES, mat_path
 
@@ -88,20 +89,20 @@ class Lightsim2gridBatch(BatchAdapter):
         gen_p, load_p, load_q, number = injections(case, grid)
         n = len(gen_p)
         computer = InjectionSweepCPP(grid)
-        computer.change_algorithm(AlgorithmType.NR_KLU)
+        computer.change_algorithm(AlgorithmType.NRSing_KLU)
         computer.init_from_n_powerflow = True
         computer.modify_gen_p(gen_p)
         computer.modify_sgen_p(np.zeros((n, 0)))
         computer.modify_load_p(load_p)
         computer.modify_load_q(load_q)
         v_init = np.full(len(grid.get_bus_vn_kv()), grid.get_init_vm_pu(), dtype=complex)
-        return {"computer": computer, "grid": grid, "v_init": v_init, "n": n,
+        return {"computer": computer, "grid": grid, "v_init": v_init, "tol": tolerance(grid), "n": n,
                 "bus_ids": [str(b) for b in number], "v": None}
 
     def solve(self, model, threads=1):
         computer = model["computer"]
         computer.nb_thread = threads
-        computer.compute(model["v_init"], MAX_ITERATIONS, TOLERANCE_PU)
+        computer.compute(model["v_init"], MAX_ITERATIONS, model["tol"])
         bad = model["n"] - int(np.asarray(computer.converged_mask(), bool).sum())
         if bad:
             raise DidNotConverge(f"{bad} of {model['n']} scenarios did not converge")

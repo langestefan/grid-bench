@@ -141,6 +141,8 @@ tool-configs/toop/Dockerfile          ToOp's sources (four of its packages, pure
 tool-configs/sparlectra/Dockerfile, julia/   the same for Sparlectra.jl (GridBenchSparlectra, se.jl: estimation)
 tool-configs/p3s/Dockerfile           compiles p3s's C++/KLU extension (not on PyPI) from pinned sources,
              with OpenMP for its batch solver (libgomp from the same pinned gcc image)
+tool-configs/lightsim2grid/Dockerfile   compiles lightsim2grid from its pinned sdist with p3s's compiler
+             and flags, in place of the PyPI wheel, so the two C++/KLU solvers share a build
 tool-configs/<tool>/pom.xml, jars.sha256   a Java library (opencgmes, powsybl): exact versions, and the
              SHA-256 of every jar they resolve to; built by docker/java-tool.dockerfile
 docker/      base.dockerfile, tool.dockerfile, java-tool.dockerfile, docker-compose.yml, build.sh, run_*.sh
@@ -350,6 +352,8 @@ the Fuseki jar by SHA-256 (`docker/fuseki/Dockerfile`), GNU Octave by the
 official image's digest and the MATPOWER release zip by SHA-256
 (`tool-configs/matpower/Dockerfile`), the gcc image by digest and the
 SuiteSparse and p3s source tarballs by SHA-256 (`tool-configs/p3s/Dockerfile`),
+the same gcc image and the lightsim2grid sdist by SHA-256
+(`tool-configs/lightsim2grid/Dockerfile`),
 NVIDIA's CUDA devel image by digest and the cuDSS, lightsim2grid sdist and
 gpusim2grid tarballs by SHA-256 (`tool-configs/gpusim2grid/Dockerfile`),
 the Maven and JRE images by digest and every jar of a Java library by

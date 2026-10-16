@@ -1,6 +1,8 @@
 # Dependencies of the lightsim2grid benchmark image. The tool is pinned exactly: a
 # version change is a deliberate, recorded event, never a side effect of a
-# rebuild. See adapters/lightsim2grid_adapter.py for how the tool is driven.
+# rebuild. See adapters/lightsim2grid_adapter.py for how the tool is driven,
+# and tool-configs/lightsim2grid/Dockerfile for its build: this release,
+# compiled from its sdist with p3s's flags in place of the PyPI wheel.
 [project]
 name = "grid-bench-lightsim2grid"
 version = "0.1.0"
@@ -12,6 +14,18 @@ dependencies = [
     "pytest-benchmark>=5.1",
     "pytest-timeout>=2.3",
     "lightsim2grid==1.1.0",
+]
+
+# Only for compiling lightsim2grid from its sdist in the Dockerfile's builder
+# stage (`uv sync --only-group build`), so its build requirements come from
+# this lockfile too instead of an unpinned isolated build environment.
+[dependency-groups]
+build = [
+    "numpy>=2.2",   # the extension's numpy headers, the same series as the runtime
+    "scikit-build-core>=0.10",
+    "pybind11>=2.12",
+    "cmake>=3.18",
+    "ninja>=1.11",
 ]
 
 [tool.uv]

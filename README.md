@@ -324,7 +324,7 @@ output is graded but not solved by default.
 |---|---|---|---|
 | pandapower | `from_mpc` (.mat) | `from_cim` | `runpp`, NR, numba |
 | pandapower (p3s) | `from_mpc` (.mat) | `from_cim` (no slack for p3s: it reads only `ext_grid`) | `NewtonPowerflowCpp` (nr_klu, KLU), its own Ybus |
-| lightsim2grid | `init_from_matpower` (.mat) | — | `NR_KLU` |
+| lightsim2grid | `init_from_matpower` (.mat) | — | `NRSing_KLU` (single-slack NR, KLU), built from its sdist with p3s's flags |
 | PyPSA | `import_from_pypower_ppc`, transformers as pi-model | — | `pf()` |
 | power-grid-model | PGM JSON via `gridoxide.matpower` | — | NR with experimental voltage regulators |
 | pypowsybl | `network.load` (.mat) | `network.load` (zip); slack from `referencePriority` | OpenLoadFlow |
