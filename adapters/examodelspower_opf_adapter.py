@@ -9,8 +9,11 @@ group behind ExaPF.jl, and are built to run on GPUs; this is the CPU backend
 Input: the `.m`, read by ExaPowerIO (ExaModelsPower's parser), then the
 same two calls `ac_opf_model` makes (`parse_ac_power_data`,
 `build_polar_opf`), kept apart so the parsed data is at hand for the joins.
-Joins: buses by number (`bus_i`); generators by `i`, the row in the `.m`'s
-gen matrix (1-based there, 0-based here), asserted against the row's bus.
+Joins: buses by number (`bus_i`); generators by `i`, which is not the row
+in the `.m`'s gen matrix but the position among its in-service rows
+(ExaPowerIO drops the others as it parses and numbers the rest), so it is
+mapped back to the row through the `.m`'s status column, asserted by count
+and against the row's bus.
 
 What the model reads differently from MATPOWER (none of it arises on the
 PGLib cases, which have only quadratic costs, no zero ratings and nothing
@@ -18,8 +21,11 @@ out of service; the oracle grades against the raw `.m` either way):
 - costs: the first three polynomial coefficients, always taken as
   quadratic, linear, constant (a `gencost` with n = 2 would be misread);
 - `rateA = 0` is a limit of 0 MVA, not unlimited;
-- out-of-service generators and branches are dropped as parsed, which
-  shifts generator rows (the join's assertion would fail, not mis-join).
+- out-of-service generators and branches are dropped as parsed (the
+  join above maps generators back to their rows);
+- bus types are rewritten from the generators: a PQ bus with an in-service
+  generator becomes PV, a PV or reference bus without one becomes PQ, and a
+  reference bus so lost moves to the bus of the largest generator.
 
 Settings:
 - Polar form: MATPOWER's AC-OPF, polynomial cost, voltage, generator,
@@ -35,10 +41,12 @@ Settings:
   starts flat. MadNLP's own re-solve (`solve!` on the same solver) would
   keep the duals, a warm start.
 - MadNLP: `tol = OPF_TOLERANCE` (its default is 1e-8, on the scaled NLP
-  error, as Ipopt's), `max_iter = OPF_MAX_ITERATIONS`, its defaults
-  otherwise: MUMPS (MadNLP's default sparse solver, the same Ipopt uses in
-  the PowerModels image), the full sparse KKT system, NLP scaling on.
-  `print_level = ERROR`.
+  error, as Ipopt's), `max_iter = OPF_MAX_ITERATIONS`, `linear_solver =
+  MumpsSolver` (MadNLP's default sparse solver, set so a version bump cannot
+  change it silently; the same Ipopt uses in the PowerModels image), its
+  defaults otherwise: the full sparse KKT system, NLP scaling on.
+  `print_level = ERROR`. Only `SOLVE_SUCCEEDED` counts as solved; any other
+  status (`SOLVED_TO_ACCEPTABLE_LEVEL` included) is raised by name.
 - Julia runs single-threaded (`PYTHON_JULIACALL_THREADS=1`); ExaPowerIO's
   info log on every parse is silenced.
 
@@ -48,9 +56,11 @@ GPU image and an OPF GPU tab, neither of which exists yet.
 """
 from importlib.metadata import version
 
+import numpy as np
+
 from adapters.optimizer_adapter import OPF_MAX_ITERATIONS, OPF_TOLERANCE, OptimizerAdapter
 from adapters.solver_adapter import DidNotConverge, Solution
-from cases.matpower import GEN_BUS, parse_m
+from cases.matpower import GEN_BUS, GEN_STATUS, parse_m
 from cases.registry import CASES
 
 
@@ -81,15 +91,17 @@ class ExamodelspowerOptimizer(OptimizerAdapter):
         return _gb().load(str(CASES[case]["file"]), OPF_TOLERANCE, OPF_MAX_ITERATIONS)
 
     def solve(self, model):
-        iterations = _gb().solve_b(model)   # juliacall spells solve! as solve_b
-        if iterations < 0:
-            raise DidNotConverge(f"MadNLP: not solved in {OPF_MAX_ITERATIONS} iterations")
+        iterations, status = _gb().solve_b(model)   # juliacall spells solve! as solve_b
+        if status != "SOLVE_SUCCEEDED":
+            raise DidNotConverge(f"MadNLP: {status} after {iterations} iterations")
         self._iterations = int(iterations)
 
     def solution(self, model, case):
         buses, vm, va, rows, gen_buses, pg, qg = _gb().solution(model)
         gen = parse_m(CASES[case]["file"])["gen"]
-        rows = [int(r) for r in rows]
+        in_service = np.flatnonzero(gen[:, GEN_STATUS] != 0)   # ExaPowerIO drops status == 0
+        assert len(in_service) == len(rows)
+        rows = [int(in_service[int(r)]) for r in rows]
         assert all(int(gen[r, GEN_BUS]) == int(b) for r, b in zip(rows, gen_buses))
         buses = [str(b) for b in buses]
         return Solution(dict(zip(buses, map(float, vm))), dict(zip(buses, map(float, va))), self._iterations,

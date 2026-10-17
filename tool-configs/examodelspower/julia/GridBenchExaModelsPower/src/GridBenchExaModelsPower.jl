@@ -47,16 +47,18 @@ end
 """One solve from the start set in `load`: a new MadNLP solver on the
 persistent model each time (`madnlp`, as the package is used), so no
 iterate, dual or barrier parameter carries over from the previous solve.
-Returns MadNLP's iteration count, or -1 if not solved."""
+Returns MadNLP's iteration count and its status, by name."""
 function solve!(m::Model)
-    stats = MadNLP.madnlp(m.nlp; tol = m.tol, max_iter = m.max_iterations, print_level = MadNLP.ERROR)
+    stats = MadNLP.madnlp(m.nlp; linear_solver = MadNLP.MumpsSolver, tol = m.tol, max_iter = m.max_iterations,
+                          print_level = MadNLP.ERROR)
     m.stats[] = stats
-    stats.status == MadNLP.SOLVE_SUCCEEDED || return -1
-    return stats.iter
+    return stats.iter, string(stats.status)
 end
 
-"""Bus numbers, |V| in p.u., angles in degrees; then generator rows (0-based,
-the `.m`'s order), their bus numbers, P in MW and Q in MVAr, of the last solve."""
+"""Bus numbers, |V| in p.u., angles in degrees; then generator positions
+(0-based, among the in-service generators in the `.m`'s order: ExaPowerIO
+drops the others and numbers the rest), their bus numbers, P in MW and Q in
+MVAr, of the last solve."""
 function solution(m::Model)
     stats, v, d = m.stats[], m.vars, m.data
     base_mva = d.baseMVA[1]
